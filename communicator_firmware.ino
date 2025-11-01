@@ -1,18 +1,15 @@
 #include <WiFi.h>
 #include <esp_now.h>
 
-// === Pin configuration ===
 #define LEFT_BEAM 22
 #define RIGHT_BEAM 23
 #define LED_RED 13
 #define LED_YELLOW 12
 #define LED_GREEN 14
 
-// === Constants ===
 #define VEHICLE_LENGTH_CM 10.0
 #define SEND_INTERVAL 2500
 
-// === Globals ===
 uint8_t mainAddress[] = {0x88, 0x57, 0x21, 0xBC, 0x45, 0xE8};
 
 unsigned long leftTime = 0, rightTime = 0;
@@ -20,12 +17,10 @@ bool leftBroken = false, rightBroken = false;
 unsigned long lastSend = 0;
 float lastSpeed = 0.0;
 
-// === Function prototypes ===
 void sendSpeed(float speed);
 void onDataRecv(const esp_now_recv_info_t *info, const uint8_t *data, int len);
 void setLights(bool r, bool y, bool g);
 
-// === Setup ===
 void setup() {
   Serial.begin(115200);
 
@@ -53,35 +48,28 @@ void setup() {
   Serial.println("[COMM] Ready.");
 }
 
-// === Loop ===
 void loop() {
   unsigned long now = millis();
   bool left = digitalRead(LEFT_BEAM) == LOW;
   bool right = digitalRead(RIGHT_BEAM) == LOW;
 
-  // === LEFT beam handling ===
   if (left && !leftBroken) {
     leftBroken = true;
     leftTime = now;
-    // Serial.printf("[COMM] LEFT beam broken at %lu ms\n", now);
   } 
   else if (!left && leftBroken) {
     leftBroken = false;
-    // Serial.printf("[COMM] LEFT beam restored at %lu ms\n", now);
   }
 
   // === RIGHT beam handling ===
   if (right && !rightBroken) {
     rightBroken = true;
     rightTime = now;
-    // Serial.printf("[COMM] RIGHT beam broken at %lu ms\n", now);
   } 
   else if (!right && rightBroken) {
     rightBroken = false;
-    // Serial.printf("[COMM] RIGHT beam restored at %lu ms\n", now);
   }
 
-  // === Calculate speed once both beams have triggered ===
   if (leftTime > 0 && rightTime > 0 && leftTime != rightTime) {
     unsigned long diff = abs((long)leftTime - (long)rightTime);
     float seconds = diff / 1000.0;
@@ -93,10 +81,9 @@ void loop() {
     sendSpeed(speedKmh);
     lastSend = now;
 
-    leftTime = rightTime = 0; // Reset times after measurement
+    leftTime = rightTime = 0; 
   }
 
-  // === Send clear signal after SEND_INTERVAL ===
   if (now - lastSend > SEND_INTERVAL) {
     if (lastSpeed != 0.0) {
       Serial.println("[COMM] Sending clear signal (0.0 km/h)");
@@ -107,7 +94,6 @@ void loop() {
   }
 }
 
-// === Send measured speed ===
 void sendSpeed(float speed) {
   uint8_t buffer[4];
   memcpy(buffer, &speed, sizeof(float));
@@ -115,7 +101,6 @@ void sendSpeed(float speed) {
   Serial.printf("[COMM] Sent speed data: %.2f km/h\n", speed);
 }
 
-// === Receive light commands from main ===
 void onDataRecv(const esp_now_recv_info_t *info, const uint8_t *data, int len) {
   if (len < 1) return;
   uint8_t cmd = data[0];
@@ -126,7 +111,6 @@ void onDataRecv(const esp_now_recv_info_t *info, const uint8_t *data, int len) {
   }
 }
 
-// === Control light LEDs ===
 void setLights(bool r, bool y, bool g) {
   digitalWrite(LED_RED, r);
   digitalWrite(LED_YELLOW, y);
